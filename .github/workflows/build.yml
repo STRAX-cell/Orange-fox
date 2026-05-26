@@ -14,11 +14,11 @@ on:
       DEVICE_TREE_URL:
         description: "Device tree url"
         required: true
-        default: "https://github.com/DrakiSama/ofrp_device_nubia_nx733j"
+        default: "https://github.com/DrakiSama/orangeFox_device_nubia_nx733j"
       DEVICE_TREE_BRANCH:
         description: "Device tree branch"
         required: true
-        default: "fox_12.1"
+        default: "master"
       DEVICE_PATH:
         description: "Device path device/"
         required: true
@@ -27,12 +27,8 @@ on:
         description: "Device name"
         required: true
         default: "NX733J"
-      LUNCH_TARGET:
-        description: "lunch ofrp_ (default same as device name)"
-        required: false
-        default: ""
       BUILD_PARTITION:
-        description: "Build partition"
+        description: "Build partition (recovery or boot)"
         required: true
         default: "recovery"
 
@@ -41,53 +37,42 @@ jobs:
     runs-on: self-hosted
     permissions:
       contents: write
+    env:
+      BUILD_DIR: ~/orangefox
+      CCACHE_DIR: ~/.ccache
+      CCACHE_MAXSIZE: 10G
+
     steps:
     - name: Show build info
       run: |
-        if [ -n "${{ github.event.inputs.LUNCH_TARGET }}" ]; then
-          echo "LUNCH_TARGET=${{ github.event.inputs.LUNCH_TARGET }}" >> "$GITHUB_ENV"
-        else
-          echo "LUNCH_TARGET=${{ github.event.inputs.DEVICE_NAME }}" >> "$GITHUB_ENV"
-        fi
-        {
-          echo 'BUILD_INFO<<EOF'
-          echo
-          echo Manifest url: ${{ github.event.inputs.OFRP_MANIFEST_URL }}
-          echo Manifest branch: ${{ github.event.inputs.OFRP_MANIFEST_BRANCH }}
-          echo Device tree url: ${{ github.event.inputs.DEVICE_TREE_URL }}
-          echo Device tree branch: ${{ github.event.inputs.DEVICE_TREE_BRANCH }}
-          echo Device path: ${{ github.event.inputs.DEVICE_PATH }}
-          echo Device name: ${{ github.event.inputs.DEVICE_NAME }}
-          echo Lunch target: ${{ github.event.inputs.LUNCH_TARGET }}
-          echo Build target: ${{ github.event.inputs.BUILD_PARTITION }}.img
-          echo Build date: `date`
-          echo
-          echo EOF
-        } >> "$GITHUB_ENV"
-        echo BUILD_DATE=`date +%F` >> "$GITHUB_ENV"
+        echo "BUILD_DATE=$(date +%F)" >> "$GITHUB_ENV"
+        echo "LUNCH_TARGET=${{ github.event.inputs.DEVICE_NAME }}" >> "$GITHUB_ENV"
+        cat <<EOF
+        ========================================
+        OrangeFox Recovery Build
+        ========================================
+        Manifest:    ${{ github.event.inputs.OFRP_MANIFEST_URL }} (${{ github.event.inputs.OFRP_MANIFEST_BRANCH }})
+        Device tree: ${{ github.event.inputs.DEVICE_TREE_URL }} (${{ github.event.inputs.DEVICE_TREE_BRANCH }})
+        Device:      ${{ github.event.inputs.DEVICE_NAME }}
+        Path:        device/${{ github.event.inputs.DEVICE_PATH }}
+        Target:      ${{ github.event.inputs.BUILD_PARTITION }}.img
+        Date:        $(date)
+        ========================================
+        EOF
 
     - name: Maximize build space
       run: |
-        sudo rm -rf /usr/share/dotnet
-        sudo rm -rf /usr/local/lib/android
-        sudo rm -rf /opt/ghc
-        sudo rm -rf /usr/local/share/boost
-        sudo rm -rf /usr/lib/jvm
-        sudo rm -rf /usr/local/lib/heroku
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+        sudo rm -rf /usr/local/share/boost /usr/lib/jvm /usr/local/lib/heroku
         sudo rm -rf /opt/hostedtoolcache
-        df -h
+        df -h /
 
     - name: Setup ccache
       run: |
-        export CCACHE_DIR=~/.ccache
-        export CCACHE_MAXSIZE=10G
-        export USE_CCACHE=1
-        mkdir -p ~/.ccache
-        ccache --set-config=cache_dir=~/.ccache
-        ccache --set-config=max_size=10G
+        mkdir -p "${{ env.CCACHE_DIR }}"
+        ccache --set-config=cache_dir="${{ env.CCACHE_DIR }}"
+        ccache --set-config=max_size="${{ env.CCACHE_MAXSIZE }}"
         ccache --set-config=compression=true
-        echo "CCACHE_DIR=~/.ccache" >> "$GITHUB_ENV"
-        echo "CCACHE_MAXSIZE=10G" >> "$GITHUB_ENV"
         echo "USE_CCACHE=1" >> "$GITHUB_ENV"
 
     - name: Setup swap file
@@ -101,71 +86,88 @@ jobs:
         swapon --show
         free -h
 
-    - name: Setup environment
+    - name: Git config
       run: |
-        git config --global user.name ${{ github.actor }}
-        git config --global user.email ${{ github.actor }}@users.noreply.github.com
+        git config --global user.name "${{ github.actor }}"
+        git config --global user.email "${{ github.actor }}@users.noreply.github.com"
 
-    - name: Sync source
+    - name: Sync OrangeFox source
       run: |
-        cd ~/orangefox
-        if [ ! -f build/envsetup.sh ]; then
-          repo init -u ${{ github.event.inputs.OFRP_MANIFEST_URL }} -b ${{ github.event.inputs.OFRP_MANIFEST_BRANCH }} --depth=1
+        if [ ! -f "${{ env.BUILD_DIR }}/build/envsetup.sh" ]; then
+          repo init -u ${{ github.event.inputs.OFRP_MANIFEST_URL }} \
+                    -b ${{ github.event.inputs.OFRP_MANIFEST_BRANCH }} \
+                    --depth=1
           repo sync -c --no-tags --optimized-fetch --prune -j$(nproc)
         else
           echo "Source already synced, skipping..."
         fi
+      working-directory: ${{ env.BUILD_DIR }}
 
     - name: Clean stale artifacts
       run: |
-        rm -rf ~/orangefox/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/recovery/root/etc
-        echo "Cleaned stale recovery/root/etc"
+        rm -rf out/target/product/${{ github.event.inputs.DEVICE_NAME }}/recovery/root/etc
+      working-directory: ${{ env.BUILD_DIR }}
 
-    - name: Setup device
+    - name: Clone device tree
       run: |
-        rm -rf ~/orangefox/device/${{ github.event.inputs.DEVICE_PATH }}
-        git clone ${{ github.event.inputs.DEVICE_TREE_URL }} -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} ~/orangefox/device/${{ github.event.inputs.DEVICE_PATH }}
+        rm -rf device/${{ github.event.inputs.DEVICE_PATH }}
+        git clone ${{ github.event.inputs.DEVICE_TREE_URL }} \
+                  -b ${{ github.event.inputs.DEVICE_TREE_BRANCH }} \
+                  device/${{ github.event.inputs.DEVICE_PATH }}
+      working-directory: ${{ env.BUILD_DIR }}
 
-    - name: Inject commit hash into branding
+    - name: Inject commit hash
       run: |
-        cd ~/orangefox/device/${{ github.event.inputs.DEVICE_PATH }}
         HASH=$(git rev-parse --short HEAD)
         sed -i "s/TW_DEVICE_VERSION := by Draki/TW_DEVICE_VERSION := by Draki ($HASH)/" BoardConfig.mk
-        echo "TW_DEVICE_VERSION=$(grep 'TW_DEVICE_VERSION' BoardConfig.mk)"
+        echo "TW_DEVICE_VERSION: $(grep 'TW_DEVICE_VERSION' BoardConfig.mk)"
+      working-directory: ${{ env.BUILD_DIR }}/device/${{ github.event.inputs.DEVICE_PATH }}
 
-    - name: Generate build info
+    - name: Generate changelog
       run: |
-        echo -e "$BUILD_INFO" >> INFO.txt
-        echo "Change log:" >> INFO.txt
-        set +e
-        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
-        if [ $? -eq 0 ]; then
-          git log "$LAST_TAG"..HEAD --pretty=format:"- %h-%an: %s" >> INFO.txt
-        else
-          git log --pretty=format:"- %h-%an: %s" >> INFO.txt
-        fi
+        {
+          echo "OrangeFox R12.1 - ${{ github.event.inputs.DEVICE_NAME }}"
+          echo "Build date: $(date)"
+          echo "Manifest: ${{ github.event.inputs.OFRP_MANIFEST_URL }} (${{ github.event.inputs.OFRP_MANIFEST_BRANCH }})"
+          echo ""
+          echo "Changelog:"
+          set +e
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
+          if [ $? -eq 0 ]; then
+            git log "$LAST_TAG"..HEAD --pretty=format:"- %h: %s"
+          else
+            git log --pretty=format:"- %h: %s"
+          fi
+        } > INFO.txt
         cat INFO.txt
-      working-directory: /home/draki/orangefox/device/${{ github.event.inputs.DEVICE_PATH }}
+      working-directory: ${{ env.BUILD_DIR }}/device/${{ github.event.inputs.DEVICE_PATH }}
 
-    - name: Build OrangeFox
+    - name: Build OrangeFox Recovery
       run: |
-        cd ~/orangefox
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
         export USE_CCACHE=1
-        export CCACHE_DIR=~/.ccache
-        export CCACHE_MAXSIZE=10G
         lunch ofrp_${{ env.LUNCH_TARGET }}
-        m ${{ github.event.inputs.BUILD_PARTITION }}image -j$(nproc)
-        mv out/target/product/${{ github.event.inputs.DEVICE_NAME }}/${{ github.event.inputs.BUILD_PARTITION }}.img ~/orangefox/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/OrangeFox-R12.1-${{ github.event.inputs.DEVICE_NAME }}-${{ env.BUILD_DATE }}.img
+        make ${{ github.event.inputs.BUILD_PARTITION }}image -j$(nproc) 2>&1 | tail -100
+      working-directory: ${{ env.BUILD_DIR }}
+
+    - name: Prepare artifacts
+      run: |
+        ARTIFACT="OrangeFox-R12.1-${{ github.event.inputs.DEVICE_NAME }}-${{ env.BUILD_DATE }}.img"
+        cp out/target/product/${{ github.event.inputs.DEVICE_NAME }}/${{ github.event.inputs.BUILD_PARTITION }}.img \
+           "$ARTIFACT"
+        echo "ARTIFACT=$ARTIFACT" >> "$GITHUB_ENV"
+        ls -lh "$ARTIFACT"
+      working-directory: ${{ env.BUILD_DIR }}
 
     - name: Upload to Release
       uses: softprops/action-gh-release@v2
       with:
         files: |
-          /home/draki/orangefox/out/target/product/${{ github.event.inputs.DEVICE_NAME }}/OrangeFox-R12.1-${{ github.event.inputs.DEVICE_NAME }}-${{ env.BUILD_DATE }}.img
-        name: OrangeFox-R12.1-${{ github.event.inputs.DEVICE_NAME }}-${{ env.BUILD_DATE }}-${{ github.run_id }}
-        tag_name: ${{ env.BUILD_DATE }}-${{ github.run_id }}
-        body_path: /home/draki/orangefox/device/${{ github.event.inputs.DEVICE_PATH }}/INFO.txt
+          ${{ env.BUILD_DIR }}/${{ env.ARTIFACT }}
+          ${{ env.BUILD_DIR }}/device/${{ github.event.inputs.DEVICE_PATH }}/INFO.txt
+        name: OrangeFox-R12.1-${{ github.event.inputs.DEVICE_NAME }}-${{ env.BUILD_DATE }}
+        tag_name: v${{ env.BUILD_DATE }}-${{ github.run_id }}
+        body_path: ${{ env.BUILD_DIR }}/device/${{ github.event.inputs.DEVICE_PATH }}/INFO.txt
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
