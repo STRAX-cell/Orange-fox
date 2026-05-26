@@ -1,0 +1,60 @@
+import /init.recovery.early.rc
+
+on early-init
+    mount configfs none /config
+    chmod 0770 /config/usb_gadget
+    chown root system /config/usb_gadget
+    write /proc/sys/kernel/kptr_restrict 0
+
+on init
+    export PATH /sbin:/system/sbin:/system/bin:/system/xbin:/vendor/bin
+
+    # Mount vendor_dlkm
+    exec u:r:recovery:s0 -- /vendor/bin/mount_vendor_dlkm.sh
+
+    # thermal
+    chmod 0666 /sys/class/thermal/thermal_zone1/temp
+
+    # RTC
+    chmod 0644 /sys/devices/platform/soc/soc:qcom-shutdown-tz/tz_sync_time
+
+on fs
+    wait /dev/block/by-name/vendor_boot$(getprop ro.boot.slot_suffix)
+    mount ext4 /dev/block/by-name/vendor_boot$(getprop ro.boot.slot_suffix) /vendor ro
+
+    # mount modem firmware
+    exec u:r:recovery:s0 -- /system/bin/sh /vendor/bin/init.qcom.post_boot.sh
+
+on boot
+    # charger
+    chmod 0666 /sys/class/power_supply/battery/voltage_now
+    chmod 0666 /sys/class/power_supply/battery/capacity
+    chmod 0666 /sys/class/power_supply/battery/status
+    chmod 0666 /sys/class/power_supply/battery/health
+
+    # backlight
+    chmod 0666 /sys/class/backlight/panel0-backlight/brightness
+
+    # vendor modules
+    insmod /vendor/lib/modules/msm.ko
+    insmod /vendor/lib/modules/drm_display_helper.ko
+    insmod /vendor/lib/modules/panel_event_notifier.ko
+    insmod /vendor/lib/modules/dispcc-sun.ko
+    insmod /vendor/lib/modules/gpucc-sun.ko
+
+    # touch
+    insmod /vendor/lib/modules/zte_tpd.ko
+    insmod /vendor/lib/modules/aw9620x.ko
+    start ztethp
+    chmod 0666 /sys/devices/virtual/touch/tp_dev/gesture_on
+    chmod 0666 /sys/devices/virtual/touch/tp_dev/charger_on
+
+service ztethp /vendor/bin/odm_tsc
+    class core
+    user root
+    group root
+    oneshot
+
+on property:sys.boot_completed=1
+    # Branding injection
+    exec u:r:recovery:s0 -- /vendor/bin/set_branding.sh

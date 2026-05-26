@@ -1,0 +1,7 @@
+# Vendor properties
+ro.vendor.build.security_patch=2025-12-01
+debug.sf.hw=1
+debug.egl.hw=1
+debug.composition.type=gpu
+persist.demo.hdmirotationlock=false
+ro.vendor.camera.extensions.enable=false

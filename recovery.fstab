@@ -1,0 +1,37 @@
+# Android fstab — Nubia Z70 Ultra (NX733J / PQ84A01)
+# Snapdragon 8 Elite (sun) — GKI 2.0 — dynamic partitions via super
+
+# Logical partitions (inside super)
+/system           ext4    ro,barrier=1                                        wait,slotselect,avb=vbmeta_system,logical,first_stage_mount
+/system_ext       ext4    ro,barrier=1                                        wait,slotselect,avb=vbmeta_system,logical,first_stage_mount
+/product          ext4    ro,barrier=1                                        wait,slotselect,avb=vbmeta_system,logical,first_stage_mount
+/vendor           ext4    ro,barrier=1                                        wait,slotselect,avb=vbmeta,logical,first_stage_mount
+/odm              ext4    ro,barrier=1                                        wait,slotselect,avb=vbmeta,logical,first_stage_mount
+/vendor_dlkm      ext4    ro,barrier=1                                        wait,slotselect,avb=vbmeta,logical,first_stage_mount
+/odm_dlkm         ext4    ro,barrier=1                                        wait,slotselect,avb=vbmeta,logical,first_stage_mount
+/system_dlkm      ext4    ro,barrier=1                                        wait,slotselect,avb=vbmeta_system,logical,first_stage_mount
+
+# Physical partitions
+/boot             emmc    defaults                                            slotselect,first_stage_mount
+/vendor_boot      emmc    defaults                                            slotselect,first_stage_mount
+/init_boot        emmc    defaults                                            slotselect,first_stage_mount
+/recovery         emmc    defaults                                            slotselect
+/dtbo             emmc    defaults                                            slotselect
+
+# Metadata — FBE
+/metadata         f2fs    noatime,nosuid,nodev,discard,reserve_root=32768,resgid=1065,fsync_mode=nobarrier,wrappedkey       wait,check,formattable,first_stage_mount
+
+# Userdata — FBE con ICE hardware encryption
+/userdata         f2fs    noatime,nosuid,nodev,discard,reserve_root=131072,resgid=1065,fsync_mode=nobarrier,wrappedkey,fileencryption=ice:v2      wait,check,formattable,quota,reservedsize=512M,keydirectory=/metadata/vold/metadata_encryption,encryptable=ice
+
+# Modem firmware (needs slotselect para mantener slot actual)
+/modem            emmc    defaults                                            slotselect,first_stage_mount
+
+# Firmware partitions
+/firmware         vfat    ro,shortname=lower,uid=1000,gid=1000,dmask=227,fmask=337,context=u:object_r:firmware_file:s0    wait,slotselect
+
+# Persist
+/persist          ext4    noatime,nosuid,nodev,barrier=1,user_xattr          wait
+
+# USB OTG
+/usb-otg          auto    defaults                                            defaults

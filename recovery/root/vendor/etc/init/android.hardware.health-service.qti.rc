@@ -1,0 +1,5 @@
+service vendor.health-service-qti /vendor/bin/hw/android.hardware.health-service.qti
+    class core
+    user root
+    group root
+    oneshot

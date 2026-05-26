@@ -1,0 +1,8 @@
+# Minimal vendor file contexts for nx733j
+/(vendor|system/vendor)     u:object_r:vendor_file:s0
+/(vendor|system/vendor)/bin u:object_r:vendor_shell_exec:s0
+/(vendor|system/vendor)/etc u:object_r:vendor_configs_file:s0
+/(vendor|system/vendor)/lib u:object_r:vendor_file:s0
+/(vendor|system/vendor)/lib64 u:object_r:vendor_file:s0
+/(vendor|system/vendor)/firmware u:object_r:firmware_file:s0
+/(vendor|system/vendor)/overlay u:object_r:vendor_overlay_file:s0

@@ -1,0 +1,9 @@
+# System properties
+ro.build.version.sdk=35
+ro.build.version.release=15
+ro.build.version.security_patch=2026-02-01
+ro.config.notification_sound=Argon.ogg
+ro.config.alarm_alert=Oxygen.ogg
+ro.config.ringtone=Callisto.ogg
+ro.sf.lcd_density=520
+persist.sys.timezone=America/Argentina/Buenos_Aires

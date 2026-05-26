@@ -1,0 +1,81 @@
+# USB configfs para Nubia Z70 Ultra (NX733J)
+# Modos: MTP, ADB, Fastboot
+
+on init
+    write /config/usb_gadget/g1/UDC a600000.dwc3
+
+on boot
+    write /config/usb_gadget/g1/bcdUSB 0x0200
+    write /config/usb_gadget/g1/bDeviceClass 0xEF
+    write /config/usb_gadget/g1/bcdDevice 0x0223
+    write /config/usb_gadget/g1/idVendor 0x19d2
+    write /config/usb_gadget/g1/idProduct 0x0501
+    write /config/usb_gadget/g1/bDeviceProtocol 0x01
+    write /config/usb_gadget/g1/bDeviceSubClass 0x02
+    mkdir /config/usb_gadget/g1/strings/0x409 0770
+    write /config/usb_gadget/g1/strings/0x409/serialnumber 33008NVJ8000802
+    write /config/usb_gadget/g1/strings/0x409/manufacturer Nubia
+    write /config/usb_gadget/g1/strings/0x409/product NX733J
+    mkdir /config/usb_gadget/g1/configs/b.1 0770
+    mkdir /config/usb_gadget/g1/configs/b.1/strings/0x409 0770
+    write /config/usb_gadget/g1/configs/b.1/strings/0x409/configuration mtp
+    write /config/usb_gadget/g1/configs/b.1/MaxPower 500
+
+on property:sys.usb.config=none
+    write /config/usb_gadget/g1/configs/b.1/strings/0x409/configuration none
+    rm /config/usb_gadget/g1/configs/b.1/f1
+    rm /config/usb_gadget/g1/configs/b.1/f2
+    write /config/usb_gadget/g1/UDC ""
+
+on property:sys.usb.config=mtp
+    write /config/usb_gadget/g1/configs/b.1/strings/0x409/configuration mtp
+    mkdir /config/usb_gadget/g1/functions/mtp.gs0 0770
+    ln /config/usb_gadget/g1/functions/mtp.gs0 /config/usb_gadget/g1/configs/b.1/f1
+    write /config/usb_gadget/g1/OS_DESC_EXT_PROT 0x0001
+    write /config/usb_gadget/g1/OS_DESC_EXT_SELECTOR 0x0005
+    write /config/usb_gadget/g1/idProduct 0x0501
+    write /config/usb_gadget/g1/UDC a600000.dwc3
+
+on property:sys.usb.config=adb
+    write /config/usb_gadget/g1/configs/b.1/strings/0x409/configuration adb
+    mkdir /config/usb_gadget/g1/functions/ffs.adb 0770
+    ln /config/usb_gadget/g1/functions/ffs.adb /config/usb_gadget/g1/configs/b.1/f1
+    mount functionfs adb /dev/usb-ffs/adb uid=2000,gid=2000
+    write /config/usb_gadget/g1/idProduct 0x0502
+    write /config/usb_gadget/g1/UDC a600000.dwc3
+
+on property:sys.usb.config=mtp,adb
+    write /config/usb_gadget/g1/configs/b.1/strings/0x409/configuration mtp_adb
+    mkdir /config/usb_gadget/g1/functions/mtp.gs0 0770
+    ln /config/usb_gadget/g1/functions/mtp.gs0 /config/usb_gadget/g1/configs/b.1/f1
+    mkdir /config/usb_gadget/g1/functions/ffs.adb 0770
+    ln /config/usb_gadget/g1/functions/ffs.adb /config/usb_gadget/g1/configs/b.1/f2
+    mount functionfs adb /dev/usb-ffs/adb uid=2000,gid=2000
+    write /config/usb_gadget/g1/idProduct 0x0503
+    write /config/usb_gadget/g1/UDC a600000.dwc3
+
+on property:sys.usb.config=fastboot
+    write /config/usb_gadget/g1/configs/b.1/strings/0x409/configuration fastboot
+    mkdir /config/usb_gadget/g1/functions/ffs.adb 0770
+    ln /config/usb_gadget/g1/functions/ffs.adb /config/usb_gadget/g1/configs/b.1/f1
+    mount functionfs adb /dev/usb-ffs/adb uid=2000,gid=2000
+    write /config/usb_gadget/g1/idProduct 0x0504
+    write /config/usb_gadget/g1/UDC a600000.dwc3
+
+on property:sys.usb.config=diag
+    write /config/usb_gadget/g1/idProduct 0x0505
+
+service adbd /sbin/adbd --root_seclabel=u:r:adbd:s0 --device_banner=1
+    disabled
+    socket adbd stream 660 system system
+    user root
+    group root
+
+on property:sys.usb.config=adb
+    start adbd
+
+on property:sys.usb.config=mtp,adb
+    start adbd
+
+on property:sys.usb.config=fastboot
+    start adbd

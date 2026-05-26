@@ -1,0 +1,5 @@
+service qseecomd /vendor/bin/qseecomd
+    class core
+    user root
+    group root
+    oneshot

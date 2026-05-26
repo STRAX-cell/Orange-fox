@@ -1,0 +1,2 @@
+# Mount modem firmware for charging
+/dev/block/by-name/modem_a    /firmware   vfat    ro,context=u:object_r:firmware_file:s0,shortname=lower,uid=1000,gid=1000,dmask=227,fmask=337     wait,first_stage_mount

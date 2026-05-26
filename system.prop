@@ -1,0 +1,25 @@
+# system.prop — Nubia Z70 Ultra (NX733J / PQ84A01)
+# OrangeFox Recovery — Android 16 / Snapdragon 8 Elite (sun)
+
+ro.adb.secure=0
+
+ro.charger.enable_suspend=1
+
+vendor.usb.configfs=1
+vendor.usb.rps_mask=0
+vendor.usb.uvc.function.init=1
+ro.boot.usbcontroller=a600000.dwc3
+
+ro.hardware=qcom
+
+ro.boot.bootdevice=1d84000.ufshc
+ro.boot.boot_devices=soc/1d84000.ufshc
+
+ro.sf.lcd_density=520
+
+ro.crypto.state=encrypted
+ro.crypto.type=file
+ro.crypto.metadata.enabled=true
+
+ro.vendor.qti.va_aosp.support=1
+ro.vendor.qti.va_odm.support=1

@@ -1,0 +1,6 @@
+service ssgtzd /vendor/bin/ssgtzd
+    class core
+    user root
+    group root
+    socket ssgtzd stream 660 system system
+    oneshot

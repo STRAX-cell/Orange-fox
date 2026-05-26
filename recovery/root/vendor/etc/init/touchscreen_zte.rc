@@ -1,0 +1,5 @@
+service ztethp /vendor/bin/odm_tsc
+    class core
+    user root
+    group root
+    oneshot
